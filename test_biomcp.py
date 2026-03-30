@@ -4,19 +4,18 @@ import time
 
 
 def diagnose_sse(url):
-    print(f"--- DIAGNOSE: Verbinde zu {url} ---")
+    print(f"DIAGNOSE: Verbinde zu {url}")
     headers = {"Accept": "text/event-stream"}
     try:
-        # stream=True ist entscheidend für SSE
         with requests.get(url, headers=headers, stream=True, timeout=30) as r:
             print(f"Status Code: {r.status_code}")
             print(f"Response Headers: {dict(r.headers)}")
 
-            print("\n--- Warte auf Daten (10 Sekunden) ---")
+            print("\nWarte auf Daten")
             start_time = time.time()
             for line in r.iter_lines():
                 if time.time() - start_time > 10:
-                    print("\n--- Diagnose beendet (Zeitlimit erreicht) ---")
+                    print("\nDiagnose beendet (Zeitlimit erreicht)")
                     break
 
                 if line:
