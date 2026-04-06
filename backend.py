@@ -14,7 +14,6 @@ BIOMCP_URL = "http://127.0.0.1:3000/mcp"
 
 async def run_chatbot():
     # Konfiguration
-    fau_key = LLM_API_KEY
     fau_url = "https://hub.nhr.fau.de/api/llmgw/v1/chat/completions"
     fau_model = "gpt-oss-120b"
 
@@ -61,7 +60,7 @@ async def run_chatbot():
                             "temperature": 0.7
                         }
                         headers = {
-                            "Authorization": f"Bearer {fau_key}",
+                            "Authorization": f"Bearer {LLM_API_KEY}",
                             "Content-Type": "application/json"
                         }
                         response = requests.post(fau_url, json=payload, headers=headers)
@@ -94,7 +93,6 @@ async def run_chatbot():
                                     for content in tool_output.content:
                                         if isinstance(content, types.TextContent):
                                             tool_content += content.text + "\n"
-                                            print(content.text)
 
                                     messages.append({
                                         "tool_call_id": tool_call_id,
@@ -114,22 +112,63 @@ async def run_chatbot():
 
                             # Finale Antwort
                             print("DEBUG: Sende Tool-Ergebnis zurück an LLM für finale Antwort.")
-                            final_response = requests.post(fau_url, json={"model": fau_model, "messages": messages},
-                                                           headers=headers)
+                            #Second Tool Calling
+                            while True:
+                                final_response = requests.post(
+                                    fau_url,
+                                    json={
+                                        "model": fau_model,
+                                        "messages": messages,
+                                        "tools": [{"type": "function",
+                                                   "function": json.loads(call_result.model_dump_json())["tools"][0]
+                                                   }],
+                                        "tool_choice": "auto",
+                                        "temperature": 0.7
+                                    },
+                                    headers=headers)
 
-                            if final_response.status_code != 200:
-                                print(
-                                    f"FEHLER VOM FAU-SERVER (Status {final_response.status_code}) beim finalen Aufruf:")
-                                print(final_response.text)
-                                messages.pop()
-                                continue
+                                if final_response.status_code != 200:
+                                    print(
+                                        f"FEHLER VOM FAU-SERVER (Status {final_response.status_code}) beim finalen Aufruf:")
+                                    print(final_response.text)
+                                    break
 
-                            final_res_json = final_response.json()
-                            final_resp_msg = final_res_json["choices"][0].get("message", {})
-                            final_content = final_resp_msg.get("content", "Kein Inhalt in der finalen Antwort.")
+                                final_res_json = final_response.json()
+                                final_resp_msg = final_res_json["choices"][0].get("message", {})
 
-                            print(f"\nChatbot: {final_content}")
-                            messages.append({"role": "assistant", "content": final_content})
+                                if final_resp_msg.get("tool_calls"):
+                                    print("DEBUG: LLM möchte noch ein Tool aufrufen.")
+                                    messages.append(final_resp_msg)
+
+                                    for tool_call in final_resp_msg["tool_calls"]:
+                                        function_name = "biomcp"
+                                        function_args = json.loads(tool_call["function"]["arguments"])
+                                        tool_call_id = tool_call["id"]
+
+                                        tool_output = await session.call_tool(function_name, function_args)
+
+                                        tool_content = ""
+                                        for content in tool_output.content:
+                                            if isinstance(content, types.TextContent):
+                                                tool_content += content.text + "\n"
+
+                                        messages.append({
+                                            "tool_call_id": tool_call_id,
+                                            "role": "tool",
+                                            "name": function_name,
+                                            "content": tool_content,
+                                        })
+                                    continue
+
+                                final_content = final_resp_msg.get("content")
+
+                                if not final_content:
+                                    print(f"\nChatbot: {final_resp_msg}")
+                                    break
+
+                                print(f"\nChatbot: {final_content}")
+                                messages.append({"role": "assistant", "content": final_content})
+                                break
                         else:
                             content = resp_msg.get("content", "Kein Inhalt in der Antwort.")
                             print(f"\nChatbot: {content}")
