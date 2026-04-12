@@ -3,7 +3,6 @@ import asyncio
 import sys
 import requests
 import os
-from asyncio import timeout
 from http.client import responses
 from datetime import timedelta
 from mcp import ClientSession, types
@@ -22,7 +21,7 @@ async def run_chatbot():
     # Chat-Historie initialisieren
     messages = [
         {"role": "system",
-         "content": "Du bist ein hilfreicher Assistent für cBioPortal. Nutze das 'biomcp' Tool mit dem 'command' Parameter, um biomedizinische Fragen zu beantworten."}
+         "content": "Du bist ein hilfreicher Assistent für cBioPortal. Nutze das 'biomcp' Tool mit dem 'command' Parameter, um biomedizinische Fragen zu beantworten. WICHTIG: Verwende keine 'study...' Kommandos. Nutze stattdesen 'search trial...' und andere 'search/get' Kommandos."}
     ]
 
     # Call BioMCP
