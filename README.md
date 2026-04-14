@@ -33,9 +33,8 @@ cd cBioPortal-Chatbot
 
 Installieren Sie die benötigten Python-Abhängigkeiten:
 
-pip install -r requirements.txt
-
-*Hinweis: Eine `requirements.txt` Datei sollte die Pakete `openai` und `requests` enthalten.*
+pip install openai
+pip install requests mcp
 
 ## Nutzung
 
